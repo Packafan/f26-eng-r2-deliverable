@@ -44,11 +44,15 @@ export default function AnimalSpeedGraph() {
           return [{ name, speed, diet }];
         });
 
-        // Pick a fresh half of the animals on each load, then sort that sample
+        // Some species appear more than once in the source file. Keep one
+        // record per name so D3 does not draw multiple bars in one x position. - Due to a problem with Green Sea Turtle entries
+        const uniqueData = Array.from(new Map(parsedData.map((animal) => [animal.name, animal])).values());
+
+        // Pick a random half of the animals on each load for variety, then sort that sample
         // so the bars still read from slowest to fastest.
-        const displayData = parsedData
+        const displayData = uniqueData
           .toSorted(() => Math.random() - 0.5)
-          .slice(0, Math.ceil(parsedData.length / 2))
+          .slice(0, Math.ceil(uniqueData.length / 2))
           .sort((firstAnimal, secondAnimal) => firstAnimal.speed - secondAnimal.speed);
 
         if (isMounted) {

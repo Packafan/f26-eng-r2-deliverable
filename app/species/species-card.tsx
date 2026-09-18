@@ -2,6 +2,7 @@
 
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
+import CommentsDialog from "./comments-dialog";
 import LearnMoreDialog from "./learn-more-dialog";
 import EditSpeciesDialog from "./edit-species-dialog";
 type Species = Database["public"]["Tables"]["species"]["Row"];
@@ -20,6 +21,7 @@ export default function SpeciesCard({ species, currentUserId }: { species: Speci
       <h4 className="text-lg font-light italic">{species.common_name}</h4>
       <p>{species.description ? species.description.slice(0, 150).trim() + "..." : ""}</p>
       <LearnMoreDialog species={species} />
+      <CommentsDialog species={species} />
       {canEdit && <EditSpeciesDialog species={species} />}
     </div>
   );
