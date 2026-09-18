@@ -34,7 +34,9 @@
     "**/*.cjs",
     "**/*.mjs",
     ".eslintrc.cjs",
-    "next.config.js"
+    "next.config.js",
+    "app/sample_animals.csv",
+    "app/sample_animals.csv"
   ],
   "exclude": ["node_modules"]
 }
