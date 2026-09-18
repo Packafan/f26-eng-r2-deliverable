@@ -1,70 +1,175 @@
-/* eslint-disable */
 "use client";
-import { useRef, useEffect, useState  } from "react";
-import { select } from "d3-selection";
-import { scaleBand, scaleLinear, scaleOrdinal } from "d3-scale";
 import { max } from "d3-array";
-import { axisBottom, axisLeft } from "d3-axis"; // D3 is a JavaScript library for data visualization: https://d3js.org/
+import { axisBottom, axisLeft } from "d3-axis";
 import { csv } from "d3-fetch";
+import { scaleBand, scaleLinear, scaleOrdinal } from "d3-scale";
+import { select } from "d3-selection";
+import { useEffect, useRef, useState } from "react";
 
-// Example data: Only the first three rows are provided as an example
-// Add more animals or change up the style as you desire
+export type Diet = "herbivore" | "omnivore" | "carnivore";
 
-// TODO: Write this interface
-interface AnimalDatum  {
-
+export interface AnimalDatum {
+  name: string;
+  speed: number;
+  diet: Diet;
 }
 
+const diets: Diet[] = ["herbivore", "omnivore", "carnivore"];
+
+function isDiet(value: string): value is Diet {
+  return diets.includes(value as Diet);
+}
 
 export default function AnimalSpeedGraph() {
-  // useRef creates a reference to the div where D3 will draw the chart.
-  // https://react.dev/reference/react/useRef
   const graphRef = useRef<HTMLDivElement>(null);
 
   const [animalData, setAnimalData] = useState<AnimalDatum[]>([]);
 
-  // TODO: Load CSV data
   useEffect(() => {
-    console.log("Implement CSV loading!")
+    let isMounted = true;
+
+    // The CSV has friendly labels such as "Herbivore", so normalize them
+    // before checking them against the smaller set used by the chart.
+    void csv("/sample_animals.csv")
+      .then((rows) => {
+        const parsedData = rows.flatMap((row): AnimalDatum[] => {
+          const diet = row.Diet?.trim().toLowerCase();
+          const speed = Number(row["Average Speed (km/h)"] ?? row["Top Speed (km/h)"]);
+          const name = row.Animal?.trim();
+
+          if (!name || !Number.isFinite(speed) || !diet || !isDiet(diet)) {
+            return [];
+          }
+
+          return [{ name, speed, diet }];
+        });
+
+        // Pick a fresh half of the animals on each load, then sort that sample
+        // so the bars still read from slowest to fastest.
+        const displayData = parsedData
+          .toSorted(() => Math.random() - 0.5)
+          .slice(0, Math.ceil(parsedData.length / 2))
+          .sort((firstAnimal, secondAnimal) => firstAnimal.speed - secondAnimal.speed);
+
+        if (isMounted) {
+          setAnimalData(displayData);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAnimalData([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    // Clear any previous SVG to avoid duplicates when React hot-reloads
-    if (graphRef.current) {
-      graphRef.current.innerHTML = "";
-    }
+    const container = graphRef.current;
+    if (!container || animalData.length === 0) return;
 
-    if (animalData.length === 0) return;
+    // D3 owns the SVG, so clear its previous version before drawing again.
+    select(container).selectAll("svg").remove();
 
-    // Set up chart dimensions and margins
-    const containerWidth = graphRef.current?.clientWidth ?? 800;
-    const containerHeight = graphRef.current?.clientHeight ?? 500;
+    const containerWidth = container.clientWidth || 800;
+    const width = Math.max(containerWidth, 600);
+    const height = 500;
+    const margin = { top: 70, right: 40, bottom: 105, left: 78 };
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
 
-    // Set up chart dimensions and margins
-    const width = Math.max(containerWidth, 600); // Minimum width of 600px
-    const height = Math.max(containerHeight, 400); // Minimum height of 400px
-    const margin = { top: 70, right: 60, bottom: 80, left: 100 };
-
-    // Create the SVG element where D3 will draw the chart
-    // https://github.com/d3/d3-selection
-    const svg  = select(graphRef.current!)
+    const svg = select(container)
       .append<SVGSVGElement>("svg")
       .attr("width", width)
       .attr("height", height)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("role", "img")
+      .attr("aria-label", "Animal speeds by diet");
 
-    // TODO: Implement the rest of the graph
-    // HINT: Look up the documentation at these links
-    // https://github.com/d3/d3-scale#band-scales
-    // https://github.com/d3/d3-scale#linear-scales
-    // https://github.com/d3/d3-scale#ordinal-scales
-    // https://github.com/d3/d3-axis
+    const chart = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    // Each scale translates a data value into a position or color on the SVG.
+    const x = scaleBand<string>()
+      .domain(animalData.map(({ name }) => name))
+      .range([0, chartWidth])
+      .padding(0.22);
+    const y = scaleLinear()
+      .domain([0, (max(animalData, ({ speed }) => speed) ?? 0) * 1.1])
+      .nice()
+      .range([chartHeight, 0]);
+    const color = scaleOrdinal<Diet, string>().domain(diets).range(["#2f855a", "#d69e2e", "#c53030"]);
+
+    // A light grid makes the speed differences easier to compare.
+    chart
+      .append("g")
+      .attr("class", "grid-lines")
+      .call(
+        axisLeft(y)
+          .tickSize(-chartWidth)
+          .tickFormat(() => ""),
+      )
+      .selectAll("line")
+      .attr("stroke", "currentColor")
+      .attr("opacity", 0.1);
+
+    chart
+      .append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0,${chartHeight})`)
+      .call(axisBottom(x))
+      .selectAll("text")
+      .attr("text-anchor", "end")
+      .attr("transform", "rotate(-35)")
+      .attr("dx", "-0.6em")
+      .attr("dy", "0.15em");
+
+    chart.append("g").attr("class", "y-axis").call(axisLeft(y));
+
+    chart
+      .append("g")
+      .selectAll("rect")
+      .data(animalData)
+      .join("rect")
+      .attr("x", ({ name }) => x(name) ?? 0)
+      .attr("y", ({ speed }) => y(speed))
+      .attr("width", x.bandwidth())
+      .attr("height", ({ speed }) => chartHeight - y(speed))
+      .attr("rx", 3)
+      .attr("fill", ({ diet }) => color(diet));
+
+    chart
+      .append("text")
+      .attr("x", chartWidth / 2)
+      .attr("y", chartHeight + 92)
+      .attr("text-anchor", "middle")
+      .text("Animal");
+    chart
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -chartHeight / 2)
+      .attr("y", -54)
+      .attr("text-anchor", "middle")
+      .text("Speed (km/h)");
+
+    // Stack the legend vertically so the labels do not run into each other.
+    const legend = svg.append("g").attr("transform", `translate(${width - margin.right - 130},${margin.top - 66})`);
+    diets.forEach((diet, index) => {
+      const item = legend.append("g").attr("transform", `translate(0,${index * 20})`);
+      item.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(diet));
+      item
+        .append("text")
+        .attr("x", 18)
+        .attr("y", 10)
+        .attr("font-size", 11)
+        .text(diet.charAt(0).toUpperCase() + diet.slice(1));
+    });
+
+    return () => {
+      // Remove the SVG when the component unmounts or the data changes.
+      select(container).selectAll("svg").remove();
+    };
   }, [animalData]);
 
-  // TODO: Return the graph
-  return (
-    // Placeholder so that this compiles. Delete this below:
-    <div>
-      <h1> TODO: Delete this div in `animal-speed-graph.tsx` and implement the graph: </h1>
-    </div>
-  );
+  return <div ref={graphRef} className="w-full overflow-x-auto" />;
 }
