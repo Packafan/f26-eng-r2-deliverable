@@ -3,9 +3,12 @@
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
 import LearnMoreDialog from "./learn-more-dialog";
+import EditSpeciesDialog from "./edit-species-dialog";
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
-export default function SpeciesCard({ species }: { species: Species }) {
+export default function SpeciesCard({ species, currentUserId }: { species: Species; currentUserId: string }) {
+  const canEdit = species.author === currentUserId;
+
   return (
     <div className="m-4 w-72 min-w-72 flex-none rounded border-2 p-3 shadow">
       {species.image && (
@@ -17,6 +20,7 @@ export default function SpeciesCard({ species }: { species: Species }) {
       <h4 className="text-lg font-light italic">{species.common_name}</h4>
       <p>{species.description ? species.description.slice(0, 150).trim() + "..." : ""}</p>
       <LearnMoreDialog species={species} />
+      {canEdit && <EditSpeciesDialog species={species} />}
     </div>
   );
 }
