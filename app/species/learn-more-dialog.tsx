@@ -1,6 +1,4 @@
 "use client";
-// Adds functionality for the "Learn More" button to open a dialog with more information about the species.
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,9 +13,7 @@ import type { Database } from "@/lib/schema";
 import { useEffect, useState } from "react";
 
 type Species = Database["public"]["Tables"]["species"]["Row"];
-// Functionality for the "Learn More" button to open a dialog with more information about the species.
 
-// Extra Goal 1: Adds author name on the learn more card.
 export default function LearnMoreDialog({ species }: { species: Species }) {
   const [authorName, setAuthorName] = useState("Unknown author");
 
@@ -25,6 +21,7 @@ export default function LearnMoreDialog({ species }: { species: Species }) {
     let isMounted = true;
     const supabase = createBrowserSupabaseClient();
 
+    // Species stores the author's ID; the profile table gives us the name to show.
     void supabase
       .from("profiles")
       .select("display_name")

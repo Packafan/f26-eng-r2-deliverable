@@ -8,6 +8,7 @@ import EditSpeciesDialog from "./edit-species-dialog";
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
 export default function SpeciesCard({ species, currentUserId }: { species: Species; currentUserId: string }) {
+  // Only the person who created a species should see its edit controls.
   const canEdit = species.author === currentUserId;
 
   return (

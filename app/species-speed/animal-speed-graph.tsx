@@ -45,7 +45,7 @@ export default function AnimalSpeedGraph() {
         });
 
         // Some species appear more than once in the source file. Keep one
-        // record per name so D3 does not draw multiple bars in one x position. - Due to a problem with Green Sea Turtle entries
+        // record per name so D3 does not stack duplicate bars in one x position.
         const uniqueData = Array.from(new Map(parsedData.map((animal) => [animal.name, animal])).values());
 
         // Pick a random half of the animals on each load for variety, then sort that sample

@@ -89,6 +89,7 @@ create table comments (
   created_at timestamptz not null default now()
 );
 
+-- RLS keeps comments public to read while limiting new comments to signed-in users.
 alter table comments
   enable row level security;
 

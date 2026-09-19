@@ -13,12 +13,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { createBrowserSupabaseClient } from "@/lib/client-utils";
 import type { Database } from "@/lib/schema";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Species = Database["public"]["Tables"]["species"]["Row"];
 type Comment = Database["public"]["Tables"]["comments"]["Row"] & {
   profiles: { display_name: string } | null;
 };
+
+const supabase = createBrowserSupabaseClient();
 
 export default function CommentsDialog({ species }: { species: Species }) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -26,9 +28,9 @@ export default function CommentsDialog({ species }: { species: Species }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const supabase = createBrowserSupabaseClient();
 
-  const loadComments = async () => {
+  // Keep the list refreshable so a newly posted comment appears immediately.
+  const loadComments = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
 
@@ -44,16 +46,17 @@ export default function CommentsDialog({ species }: { species: Species }) {
       setComments((data ?? []) as Comment[]);
     }
     setIsLoading(false);
-  };
+  }, [species.id]);
 
   useEffect(() => {
     void loadComments();
-  }, [species.id]);
+  }, [loadComments]);
 
   const handleSubmit = async () => {
     const content = newComment.trim();
     if (!content) return;
 
+    // Use the authenticated user's ID so the database policy can verify authorship.
     setIsSubmitting(true);
     setErrorMessage("");
     const { data: userData } = await supabase.auth.getUser();
@@ -121,7 +124,7 @@ export default function CommentsDialog({ species }: { species: Species }) {
           {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !newComment.trim()}>
+          <Button onClick={() => void handleSubmit()} disabled={isSubmitting || !newComment.trim()}>
             {isSubmitting ? "Posting..." : "Post comment"}
           </Button>
         </DialogFooter>

@@ -71,6 +71,7 @@ export interface Database {
           },
         ];
       };
+      // This mirrors the Supabase comments table used by the comments dialog.
       comments: {
         Row: {
           author: string;
